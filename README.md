@@ -17,10 +17,10 @@ Track long-term dice roll statistics. Create named **measurements** (e.g. "Catan
 ## Deploy to Vercel
 
 1. In Vercel, **Add New → Project** and import this GitHub repo. Framework preset: **Other** (no build command needed).
-2. In the project, go to **Storage → Create → Blob** and connect the store to the project. This sets `BLOB_READ_WRITE_TOKEN` automatically.
-3. Redeploy (Deployments → ⋯ → Redeploy) so the functions pick up the token.
+2. In the project, go to **Storage → Create → Blob** and connect the store to the project (private store recommended). Vercel adds `BLOB_STORE_ID` and the SDK authenticates with short-lived OIDC credentials automatically — no token to manage.
+3. Redeploy (Deployments → ⋯ → Redeploy) so the functions pick up the connection.
 
-If you create the Blob store as **private**, also add the environment variable `BLOB_ACCESS=private`. With a public store, blob URLs are unguessable but technically public.
+Private and public stores both work; the mode is detected on first save (or set `BLOB_ACCESS=private|public`). Visit `/api/health` to check the connection.
 
 ## Local development
 
