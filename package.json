@@ -1,0 +1,16 @@
+{
+  "name": "dice-stats",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Track long-term dice roll statistics. Static frontend + Vercel serverless API, stored in Vercel Blob.",
+  "type": "module",
+  "scripts": {
+    "dev": "node dev/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@vercel/blob": ">=1.0.0"
+  }
+}

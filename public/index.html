@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14382b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Dice Stats</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+  :root {
+    --felt: #14382b;
+    --felt-2: #1d4a39;
+    --paper: #f6f1e7;
+    --card: #fffdf8;
+    --ink: #1d1b17;
+    --muted: #6f685c;
+    --line: #e4dccb;
+    --accent: #c8452c;
+    --accent-ink: #fff;
+    --gold: #d9a441;
+    --radius: 14px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  header.bar { position: sticky; top: 0; z-index: 5; background: var(--felt); color: #f3eedf;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px; display: flex; align-items: center; gap: 10px; }
+  header.bar h1 { font-size: 19px; margin: 0; flex: 1; font-weight: 650; letter-spacing: .2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.bar .sub { font-size: 13px; opacity: .75; font-weight: 400; }
+  .iconbtn { background: transparent; border: 0; color: inherit; padding: 6px 8px; border-radius: 10px; font-size: 20px; line-height: 1; }
+  .iconbtn:active { background: rgba(255,255,255,.12); }
+
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(96px + var(--safe-b)); }
+
+  /* list */
+  .mlist { display: grid; gap: 10px; }
+  .mcard { display: flex; align-items: center; gap: 14px; background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 14px; text-align: left; width: 100%; }
+  .mcard:active { transform: scale(.99); }
+  .mcard .die { flex: none; width: 44px; height: 44px; border-radius: 10px; background: var(--felt); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: 15px; }
+  .mcard .t { flex: 1; min-width: 0; }
+  .mcard .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mcard .meta { color: var(--muted); font-size: 13px; }
+  .mcard .count { font-weight: 700; font-size: 20px; }
+  .empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+  .empty .big { font-size: 44px; }
+
+  .fab { position: fixed; right: 18px; bottom: calc(22px + var(--safe-b)); background: var(--accent); color: var(--accent-ink);
+    border: 0; border-radius: 999px; padding: 15px 22px; font-weight: 650; box-shadow: 0 6px 18px rgba(0,0,0,.22); }
+
+  /* tabs */
+  nav.tabs { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 56px); z-index: 4; display: flex; background: var(--felt-2); }
+  nav.tabs a { flex: 1; text-align: center; padding: 11px 4px; color: #cfd9d2; text-decoration: none; font-weight: 600; font-size: 15px;
+    border-bottom: 3px solid transparent; }
+  nav.tabs a.on { color: #fff; border-bottom-color: var(--gold); }
+
+  /* roll pad */
+  .stats { display: flex; gap: 10px; margin-bottom: 14px; }
+  .stat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+  .stat .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .stat .v { font-size: 22px; font-weight: 700; }
+  .pad { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+  .pad button { aspect-ratio: 1; border: 0; border-radius: 16px; background: var(--felt); color: #fff; font-size: 26px; font-weight: 700;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,.25); position: relative; transition: transform .06s; }
+  .pad button:active, .pad button.hit { transform: scale(.93); background: var(--accent); }
+  .pad button small { position: absolute; left: 0; right: 0; bottom: 7px; font-size: 11px; font-weight: 500; opacity: .6; }
+  .hint { color: var(--muted); font-size: 13px; margin: 14px 2px 0; }
+
+  /* details */
+  table.rolls { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  table.rolls th { text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: #faf6ec; }
+  table.rolls td { padding: 11px 12px; border-bottom: 1px solid var(--line); }
+  table.rolls tr:last-child td { border-bottom: 0; }
+  table.rolls tbody tr { cursor: pointer; }
+  table.rolls tbody tr:active { background: #f3ecdc; }
+  table.rolls .out { font-weight: 700; font-size: 18px; text-align: right; }
+  table.rolls .idx { color: var(--muted); width: 1%; white-space: nowrap; }
+  .pending { opacity: .55; }
+  .more { display: block; margin: 12px auto 0; background: none; border: 1px solid var(--line); border-radius: 10px; padding: 9px 16px; }
+
+  /* distribution */
+  .filters { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; margin-bottom: 14px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 14px; }
+  .chip.on { background: var(--felt); color: #fff; border-color: var(--felt); }
+  .range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .range label { font-size: 12px; color: var(--muted); display: grid; gap: 3px; }
+  .range input { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; min-width: 0; }
+  .hist { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+  .hrow { display: grid; grid-template-columns: 30px 1fr 74px; align-items: center; gap: 8px; height: 26px; }
+  .hrow .lab { text-align: right; font-weight: 700; }
+  .hrow .track { position: relative; height: 18px; background: #f1ebdd; border-radius: 5px; }
+  .hrow .fill { position: absolute; inset: 0 auto 0 0; background: var(--felt); border-radius: 5px; min-width: 0; }
+  .hrow .exp { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--gold); border-radius: 1px; }
+  .hrow .c { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .hrow .c b { color: var(--ink); }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; }
+
+  /* sheet / dialog */
+  .scrim { position: fixed; inset: 0; background: rgba(10,20,15,.45); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { background: var(--paper); width: 100%; max-width: 560px; border-radius: 20px 20px 0 0; padding: 18px 16px calc(18px + var(--safe-b));
+    max-height: 88vh; overflow: auto; animation: up .18s ease-out; }
+  @keyframes up { from { transform: translateY(30px); opacity: .5; } }
+  .sheet h2 { margin: 0 0 4px; font-size: 19px; }
+  .sheet p.s { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+  .field { display: grid; gap: 5px; margin-bottom: 14px; font-size: 14px; color: var(--muted); }
+  .field input { padding: 12px; border-radius: 11px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 17px; }
+  .stepper { display: flex; align-items: center; gap: 12px; }
+  .stepper button { width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font-size: 22px; }
+  .stepper .val { font-size: 26px; font-weight: 700; min-width: 34px; text-align: center; color: var(--ink); }
+  .actions { display: flex; gap: 10px; margin-top: 6px; }
+  .btn { flex: 1; padding: 13px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font-weight: 600; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.danger { color: var(--accent); }
+  .pad.small { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .pad.small button { font-size: 20px; border-radius: 12px; }
+  .pad.small button.cur { background: var(--accent); }
+
+  body:has(.scrim) .fab { display: none; }
+  .toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%); background: #1d1b17; color: #fff;
+    padding: 11px 16px; border-radius: 12px; z-index: 30; display: flex; gap: 14px; align-items: center; font-size: 15px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.3); max-width: calc(100% - 32px); }
+  .toast button { background: none; border: 0; color: var(--gold); font-weight: 700; padding: 0; }
+  .sync { font-size: 12px; opacity: .8; }
+  .err { color: var(--accent); }
+  .loading { text-align: center; color: var(--muted); padding: 40px; }
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Loading…</div></div>
+
+<script>
+const SIDES = 6;
+const $app = document.getElementById('app');
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const fmtDate = (t) => new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+const fmtTime = (t) => new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+const fmtAgo = (t) => {
+  if (!t) return 'No rolls yet';
+  const s = (Date.now() - new Date(t)) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return fmtDate(t);
+};
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {
+    ...opts,
+    headers: { 'content-type': 'application/json' },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(data.error || `HTTP ${r.status}`); e.status = r.status; throw e; }
+  return data;
+}
+
+// Probability of each sum for n six-sided dice.
+function expectedDist(n) {
+  let d = [1];
+  for (let i = 0; i < n; i++) {
+    const nd = new Array(d.length + SIDES - 1).fill(0);
+    d.forEach((p, j) => { for (let f = 0; f < SIDES; f++) nd[j + f] += p / SIDES; });
+    d = nd;
+  }
+  return d; // index 0 -> sum n
+}
+
+/* ---------- state ---------- */
+const S = {
+  list: null,
+  m: null,          // current measurement (server copy + optimistic pending)
+  detailLimit: 100,
+  filter: { preset: 'all', from: '', to: '' },
+  syncing: false,
+  syncError: null,
+};
+
+/* ---------- write queue (sequential, retried, survives reload) ---------- */
+let queue = store.get('dice.queue', []); // [{id, op}]
+let flushing = false;
+function enqueue(id, op) {
+  queue.push({ id, op });
+  store.set('dice.queue', queue);
+  flush();
+}
+async function flush() {
+  if (flushing || !queue.length) return;
+  flushing = true; S.syncing = true; renderSync();
+  while (queue.length) {
+    const id = queue[0].id;
+    const batch = [];
+    while (batch.length < 50 && queue[batch.length] && queue[batch.length].id === id) batch.push(queue[batch.length]);
+    try {
+      const m = await api(`/api/measurement?id=${id}`, { method: 'POST', body: { ops: batch.map((b) => b.op) } });
+      queue.splice(0, batch.length);
+      store.set('dice.queue', queue);
+      S.syncError = null;
+      if (S.m && S.m.id === id && !queue.some((q) => q.id === id)) { S.m = m; render(); }
+    } catch (e) {
+      if (e.status && e.status >= 400 && e.status < 500) {
+        // bad op (e.g. measurement deleted) — drop it
+        queue.splice(0, batch.length); store.set('dice.queue', queue);
+        toast(`Couldn't save: ${e.message}`);
+        if (S.m && S.m.id === id) await reloadCurrent();
+      } else {
+        S.syncError = 'Offline — will retry';
+        renderSync();
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
+  }
+  flushing = false; S.syncing = false; renderSync();
+}
+function applyLocal(m, op) {
+  if (op.op === 'add') m.rolls.push({ id: op.rid, t: op.t, v: op.value, pending: true });
+  if (op.op === 'update') { const r = m.rolls.find((r) => r.id === op.rid); if (r) r.v = op.value; }
+  if (op.op === 'delete') m.rolls = m.rolls.filter((r) => r.id !== op.rid);
+  if (op.op === 'rename') m.name = op.name;
+}
+function mutate(op) {
+  applyLocal(S.m, op);
+  enqueue(S.m.id, op);
+}
+async function reloadCurrent() {
+  if (!S.m) return;
+  try {
+    S.m = await api(`/api/measurement?id=${S.m.id}`);
+    queue.filter((q) => q.id === S.m.id).forEach((q) => applyLocal(S.m, q.op));
+    render();
+  } catch {}
+}
+
+/* ---------- routing ---------- */
+function route() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/');
+  if (parts[0] === 'm' && parts[1]) return { view: 'm', id: parts[1], tab: parts[2] || 'roll' };
+  return { view: 'list' };
+}
+window.addEventListener('hashchange', load);
+
+async function load() {
+  const r = route();
+  if (r.view === 'list') {
+    S.m = null;
+    if (!S.list) $app.innerHTML = shell('Dice Stats', '', '<div class="loading">Loading…</div>');
+    try { S.list = await api('/api/measurements'); } catch (e) { S.list = S.list || []; toast(`Couldn't load: ${e.message}`); }
+    render();
+  } else {
+    if (!S.m || S.m.id !== r.id) {
+      S.detailLimit = 100;
+      $app.innerHTML = shell('…', '', '<div class="loading">Loading…</div>', true);
+      try {
+        S.m = await api(`/api/measurement?id=${r.id}`);
+        queue.filter((q) => q.id === r.id).forEach((q) => applyLocal(S.m, q.op));
+      } catch (e) { toast(e.message); location.hash = '#/'; return; }
+    }
+    render();
+  }
+}
+
+/* ---------- rendering ---------- */
+function shell(title, sub, body, back, right = '') {
+  return `
+    <header class="bar">
+      ${back ? `<button class="iconbtn" onclick="location.hash='#/'" aria-label="Back">‹</button>` : ''}
+      <h1>${esc(title)} ${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</h1>
+      <span class="sync" id="sync"></span>
+      ${right}
+    </header>${body}`;
+}
+function renderSync() {
+  const el = document.getElementById('sync');
+  if (!el) return;
+  el.textContent = S.syncError ? S.syncError : queue.length ? 'Saving…' : '';
+}
+
+function render() {
+  const r = route();
+  if (r.view === 'list') renderList();
+  else if (S.m) renderMeasurement(r.tab);
+  renderSync();
+}
+
+function renderList() {
+  const items = S.list || [];
+  const body = items.length
+    ? `<div class="mlist">${items.map((m) => `
+        <button class="mcard" onclick="location.hash='#/m/${m.id}'">
+          <div class="die">${m.dice}d6</div>
+          <div class="t"><div class="name">${esc(m.name)}</div>
+            <div class="meta">${m.count ? `Last roll ${fmtAgo(m.lastRollAt)}` : 'No rolls yet'}</div></div>
+          <div class="count num">${m.count}</div>
+        </button>`).join('')}</div>`
+    : `<div class="empty"><div class="big">🎲</div><p>No measurements yet.<br>Create one to start logging rolls.</p></div>`;
+  $app.innerHTML = shell('Dice Stats', '', `<main>${body}</main>`) +
+    `<button class="fab" onclick="openCreate()">＋ New measurement</button>`;
+}
+
+function renderMeasurement(tab) {
+  const m = S.m;
+  const tabs = [['roll', 'Roll'], ['details', 'Details'], ['dist', 'Distribution']];
+  const nav = `<nav class="tabs">${tabs.map(([k, l]) => `<a href="#/m/${m.id}/${k}" class="${tab === k ? 'on' : ''}">${l}</a>`).join('')}</nav>`;
+  const body = tab === 'details' ? detailsView(m) : tab === 'dist' ? distView(m) : rollView(m);
+  const keepScroll = document.querySelector('main')?.dataset.tab === tab ? window.scrollY : 0;
+  $app.innerHTML = shell(m.name, `${m.dice}d6`, nav + `<main data-tab="${tab}">${body}</main>`, true,
+    `<button class="iconbtn" onclick="openSettings()" aria-label="Settings">⋯</button>`);
+  if (tab === 'dist') wireFilters();
+  window.scrollTo(0, keepScroll);
+}
+
+function rollView(m) {
+  const n = m.rolls.length;
+  const last = m.rolls[n - 1];
+  let btns = '';
+  for (let v = m.dice; v <= m.dice * SIDES; v++) btns += `<button data-v="${v}" onclick="roll(${v}, this)">${v}</button>`;
+  return `
+    <div class="stats">
+      <div class="stat"><div class="k">Rolls</div><div class="v num">${n}</div></div>
+      <div class="stat"><div class="k">Last</div><div class="v num">${last ? last.v : '–'}</div></div>
+      <div class="stat"><div class="k">Avg</div><div class="v num">${n ? (m.rolls.reduce((s, r) => s + r.v, 0) / n).toFixed(2) : '–'}</div></div>
+    </div>
+    <div class="pad">${btns}</div>
+    <p class="hint">Tap the outcome you rolled. Each tap is saved with the date and time.</p>`;
+}
+
+function roll(v, el) {
+  const op = { op: 'add', rid: rid(), t: new Date().toISOString(), value: v };
+  mutate(op);
+  if (navigator.vibrate) navigator.vibrate(15);
+  render();
+  const b = document.querySelector(`.pad button[data-v="${v}"]`);
+  if (b) { b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 160); }
+  toast(`Logged ${v}`, 'Undo', () => { mutate({ op: 'delete', rid: op.rid }); render(); });
+}
+
+function detailsView(m) {
+  if (!m.rolls.length) return `<div class="empty"><div class="big">📋</div><p>No rolls yet.</p></div>`;
+  const rows = m.rolls.slice().reverse();
+  const shown = rows.slice(0, S.detailLimit);
+  return `
+    <table class="rolls">
+      <thead><tr><th>#</th><th>Date</th><th>Time</th><th style="text-align:right">Roll</th></tr></thead>
+      <tbody>${shown.map((r, i) => `
+        <tr class="${r.pending ? 'pending' : ''}" onclick="openRoll('${r.id}')">
+          <td class="idx num">${rows.length - i}</td><td>${fmtDate(r.t)}</td><td class="num">${fmtTime(r.t)}</td><td class="out num">${r.v}</td>
+        </tr>`).join('')}</tbody>
+    </table>
+    ${rows.length > shown.length ? `<button class="more" onclick="S.detailLimit+=200;render()">Show more (${rows.length - shown.length} older)</button>` : ''}
+    <p class="hint">Tap a row to change its outcome or delete it.</p>`;
+}
+
+/* distribution */
+function toLocalInput(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function filterRange() {
+  const f = S.filter, now = new Date();
+  if (f.preset === 'today') { const s = new Date(now); s.setHours(0, 0, 0, 0); return [s, null]; }
+  if (f.preset === '7d') return [new Date(now - 7 * 864e5), null];
+  if (f.preset === '30d') return [new Date(now - 30 * 864e5), null];
+  if (f.preset === 'custom') return [f.from ? new Date(f.from) : null, f.to ? new Date(f.to) : null];
+  return [null, null];
+}
+function distView(m) {
+  const [from, to] = filterRange();
+  const rolls = m.rolls.filter((r) => { const t = new Date(r.t); return (!from || t >= from) && (!to || t <= to); });
+  const n = rolls.length;
+  const counts = {};
+  rolls.forEach((r) => { counts[r.v] = (counts[r.v] || 0) + 1; });
+  const exp = expectedDist(m.dice);
+  const maxFrac = Math.max(...exp, ...Object.values(counts).map((c) => c / (n || 1)));
+  const mean = n ? rolls.reduce((s, r) => s + r.v, 0) / n : null;
+  let rows = '';
+  for (let v = m.dice; v <= m.dice * SIDES; v++) {
+    const c = counts[v] || 0, frac = n ? c / n : 0, e = exp[v - m.dice];
+    rows += `<div class="hrow"><div class="lab num">${v}</div>
+      <div class="track"><div class="fill" style="width:${(frac / maxFrac) * 100}%"></div>
+        <div class="exp" style="left:calc(${(e / maxFrac) * 100}% - 1px)" title="Expected ${(e * 100).toFixed(1)}%"></div></div>
+      <div class="c num"><b>${c}</b> · ${(frac * 100).toFixed(1)}%</div></div>`;
+  }
+  const chip = (k, l) => `<button class="chip ${S.filter.preset === k ? 'on' : ''}" data-preset="${k}">${l}</button>`;
+  const f = S.filter;
+  return `
+    <div class="filters">
+      <div class="chips">${chip('all', 'All time')}${chip('today', 'Today')}${chip('7d', '7 days')}${chip('30d', '30 days')}${chip('custom', 'Custom')}</div>
+      <div class="range">
+        <label>From<input type="datetime-local" id="f-from" value="${f.preset === 'custom' ? f.from : from ? toLocalInput(from) : ''}"></label>
+        <label>To<input type="datetime-local" id="f-to" value="${f.preset === 'custom' ? f.to : ''}"></label>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">Rolls</div><div class="v num">${n}</div></div>
+      <div class="stat"><div class="k">Mean</div><div class="v num">${mean === null ? '–' : mean.toFixed(2)}</div></div>
+      <div class="stat"><div class="k">Expected</div><div class="v num">${(m.dice * 3.5).toFixed(1)}</div></div>
+    </div>
+    <div class="hist">${rows}
+      <div class="legend"><span><i style="background:var(--felt)"></i>Observed</span><span><i style="background:var(--gold);width:3px"></i>Expected for fair dice</span></div>
+    </div>`;
+}
+function wireFilters() {
+  document.querySelectorAll('.chip').forEach((b) => b.onclick = () => {
+    S.filter.preset = b.dataset.preset;
+    if (b.dataset.preset === 'custom' && !S.filter.from && S.m.rolls.length) {
+      S.filter.from = toLocalInput(new Date(S.m.rolls[0].t));
+    }
+    render();
+  });
+  const onChange = () => {
+    S.filter = { preset: 'custom', from: document.getElementById('f-from').value, to: document.getElementById('f-to').value };
+    render();
+  };
+  document.getElementById('f-from').onchange = onChange;
+  document.getElementById('f-to').onchange = onChange;
+}
+
+/* ---------- sheets ---------- */
+function sheet(html) {
+  closeSheet();
+  const s = document.createElement('div');
+  s.className = 'scrim'; s.id = 'scrim';
+  s.innerHTML = `<div class="sheet" role="dialog">${html}</div>`;
+  s.addEventListener('click', (e) => { if (e.target === s) closeSheet(); });
+  document.body.appendChild(s);
+  return s;
+}
+function closeSheet() { document.getElementById('scrim')?.remove(); }
+
+function openCreate() {
+  let dice = 2;
+  const s = sheet(`
+    <h2>New measurement</h2><p class="s">Six-sided dice. Outcomes are the total of all dice.</p>
+    <form id="cf">
+      <label class="field">Name<input id="c-name" required maxlength="80" placeholder="e.g. Catan night, Red dice" autocomplete="off"></label>
+      <div class="field">Number of dice
+        <div class="stepper"><button type="button" id="c-minus">−</button><span class="val num" id="c-dice">2</span><button type="button" id="c-plus">＋</button>
+        <span id="c-range" style="font-size:13px"></span></div>
+      </div>
+      <div class="actions"><button type="button" class="btn" onclick="closeSheet()">Cancel</button><button class="btn primary" id="c-go">Create</button></div>
+    </form>`);
+  const upd = () => { s.querySelector('#c-dice').textContent = dice; s.querySelector('#c-range').textContent = `Outcomes ${dice}–${dice * SIDES}`; };
+  s.querySelector('#c-minus').onclick = () => { dice = Math.max(1, dice - 1); upd(); };
+  s.querySelector('#c-plus').onclick = () => { dice = Math.min(10, dice + 1); upd(); };
+  upd();
+  setTimeout(() => s.querySelector('#c-name').focus(), 50);
+  s.querySelector('#cf').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = s.querySelector('#c-go'); btn.disabled = true; btn.textContent = 'Creating…';
+    try {
+      const m = await api('/api/measurements', { method: 'POST', body: { name: s.querySelector('#c-name').value, dice } });
+      closeSheet();
+      S.m = m; S.list = null;
+      location.hash = `#/m/${m.id}`;
+    } catch (err) { btn.disabled = false; btn.textContent = 'Create'; toast(err.message); }
+  };
+}
+
+function openRoll(id) {
+  const m = S.m, r = m.rolls.find((x) => x.id === id);
+  if (!r) return;
+  let btns = '';
+  for (let v = m.dice; v <= m.dice * SIDES; v++) btns += `<button class="${v === r.v ? 'cur' : ''}" data-v="${v}">${v}</button>`;
+  const s = sheet(`
+    <h2>Roll: ${r.v}</h2><p class="s">${fmtDate(r.t)} · ${fmtTime(r.t)}</p>
+    <div class="field">Change outcome to</div>
+    <div class="pad small">${btns}</div>
+    <div class="actions"><button class="btn danger" id="r-del">Delete roll</button><button class="btn" onclick="closeSheet()">Close</button></div>`);
+  s.querySelectorAll('.pad button').forEach((b) => b.onclick = () => {
+    const v = Number(b.dataset.v);
+    if (v !== r.v) { mutate({ op: 'update', rid: id, value: v }); toast(`Changed to ${v}`); }
+    closeSheet(); render();
+  });
+  s.querySelector('#r-del').onclick = () => {
+    const copy = { ...r };
+    mutate({ op: 'delete', rid: id }); closeSheet(); render();
+    toast('Roll deleted', 'Undo', () => { mutate({ op: 'add', rid: rid(), t: copy.t, value: copy.v }); render(); });
+  };
+}
+
+function openSettings() {
+  const m = S.m;
+  const s = sheet(`
+    <h2>Measurement</h2><p class="s">${m.dice}d6 · created ${fmtDate(m.createdAt)} · ${m.rolls.length} rolls</p>
+    <form id="sf"><label class="field">Name<input id="s-name" maxlength="80" value="${esc(m.name)}"></label>
+      <div class="actions"><button type="button" class="btn danger" id="s-del">Delete</button><button type="button" class="btn" id="s-csv">Export CSV</button><button class="btn primary">Save</button></div>
+    </form>`);
+  s.querySelector('#sf').onsubmit = (e) => {
+    e.preventDefault();
+    const name = s.querySelector('#s-name').value.trim();
+    if (name && name !== m.name) mutate({ op: 'rename', name });
+    closeSheet(); render();
+  };
+  s.querySelector('#s-csv').onclick = () => {
+    const csv = 'timestamp,outcome\n' + m.rolls.map((r) => `${r.t},${r.v}`).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `${m.name.replace(/[^\w-]+/g, '_')}.csv`; a.click();
+  };
+  s.querySelector('#s-del').onclick = async () => {
+    if (!confirm(`Delete "${m.name}" and all ${m.rolls.length} rolls? This can't be undone.`)) return;
+    try {
+      await api(`/api/measurement?id=${m.id}`, { method: 'DELETE' });
+      queue = queue.filter((q) => q.id !== m.id); store.set('dice.queue', queue);
+      closeSheet(); S.m = null; location.hash = '#/';
+    } catch (e) { toast(e.message); }
+  };
+}
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg, action, fn) {
+  document.getElementById('toast')?.remove();
+  clearTimeout(toastTimer);
+  const t = document.createElement('div');
+  t.className = 'toast'; t.id = 'toast';
+  t.innerHTML = `<span>${esc(msg)}</span>${action ? `<button>${esc(action)}</button>` : ''}`;
+  if (action) t.querySelector('button').onclick = () => { t.remove(); fn(); };
+  document.body.appendChild(t);
+  toastTimer = setTimeout(() => t.remove(), action ? 4000 : 2500);
+}
+
+window.addEventListener('online', flush);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { flush(); if (!queue.length) reloadCurrent(); } });
+load();
+flush();
+</script>
+</body>
+</html>
