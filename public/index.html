@@ -533,7 +533,7 @@ function toast(msg, action, fn) {
   t.innerHTML = `<span>${esc(msg)}</span>${action ? `<button>${esc(action)}</button>` : ''}`;
   if (action) t.querySelector('button').onclick = () => { t.remove(); fn(); };
   document.body.appendChild(t);
-  toastTimer = setTimeout(() => t.remove(), action ? 4000 : 2500);
+  toastTimer = setTimeout(() => t.remove(), action ? 4000 : Math.max(2500, String(msg).length * 70));
 }
 
 window.addEventListener('online', flush);
