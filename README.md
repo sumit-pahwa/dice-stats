@@ -11,19 +11,22 @@ Track long-term dice roll statistics. Create named **measurements** (e.g. "Catan
 
 - `public/index.html` – the whole frontend (vanilla JS, no build step).
 - `api/measurements.js`, `api/measurement.js` – Vercel serverless functions.
-- `lib/` – data logic and the Vercel Blob storage adapter.
-- Storage: **Vercel Blob**. Each measurement is a JSON document. Every save writes a new uniquely named blob and deletes the previous version, so reads are never served stale from the Blob CDN cache.
+- `lib/pg-store.js` – data layer on **Supabase Postgres** (via the `postgres` driver and the `POSTGRES_URL` env var that the Supabase integration adds).
+- Tables (`dice_measurements`, `dice_rolls`, `dice_meta`) are created automatically on first request, with row-level security enabled so they are not exposed through Supabase's public REST API.
+
+## Migration from Vercel Blob
+
+Earlier versions stored data in Vercel Blob. On the first request after deploying, the app copies every measurement and roll from the Blob store into Postgres once (existing rows are never overwritten) and records the result in `dice_meta`. Check `/api/health` to see the counts and migration result. The Blob data is left in place as a backup; once you're happy, you can delete the Blob store and remove `@vercel/blob` and `lib/blob-adapter.js`.
 
 ## Deploy to Vercel
 
-1. In Vercel, **Add New → Project** and import this GitHub repo. Framework preset: **Other** (no build command needed).
-2. In the project, go to **Storage → Create → Blob** and connect the store to the project (private store recommended). Vercel adds `BLOB_STORE_ID` and the SDK authenticates with short-lived OIDC credentials automatically — no token to manage.
-3. Redeploy (Deployments → ⋯ → Redeploy) so the functions pick up the connection.
-
-Private and public stores both work; the mode is detected on first save (or set `BLOB_ACCESS=private|public`). Visit `/api/health` to check the connection.
+1. Import this repo in Vercel (framework preset: **Other**, no build command).
+2. Storage → connect a **Supabase** database to the project. This adds `POSTGRES_URL` and friends.
+3. Redeploy. Visit `/api/health` to confirm `"database": "ok"`.
 
 ## Local development
 
 ```bash
-node dev/server.js   # http://localhost:3000 — uses a local ./.data folder instead of Blob
+node dev/server.js                      # uses a local ./.data folder
+POSTGRES_URL=postgres://... node dev/server.js   # uses Postgres
 ```

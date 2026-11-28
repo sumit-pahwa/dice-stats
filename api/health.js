@@ -1,19 +1,19 @@
-import { list } from '@vercel/blob';
+import { db, init } from '../lib/pg-store.js';
 
-// GET /api/health — quick check that the Blob store is connected and reachable.
-// Reports only whether credentials exist, never their values.
+// GET /api/health — checks the database connection and reports the Blob migration status.
 export default async function handler(req, res) {
-  const out = {
-    blobStoreId: Boolean(process.env.BLOB_STORE_ID || Object.keys(process.env).some((k) => k.endsWith('_STORE_ID'))),
-    readWriteToken: Boolean(Object.keys(process.env).some((k) => k.endsWith('READ_WRITE_TOKEN'))),
-    accessSetting: process.env.BLOB_ACCESS || '(auto)',
-    blobList: null,
-  };
+  const out = { database: null, measurements: null, rolls: null, blobMigration: null };
   try {
-    const r = await list({ prefix: 'm/', limit: 5 });
-    out.blobList = `ok (${r.blobs.length} blobs sampled)`;
+    const sql = db();
+    await init(sql);
+    const [c] = await sql`select (select count(*) from dice_measurements) as m, (select count(*) from dice_rolls) as r`;
+    const [meta] = await sql`select value from dice_meta where key = 'blob_migrated'`;
+    out.database = 'ok';
+    out.measurements = Number(c.m);
+    out.rolls = Number(c.r);
+    out.blobMigration = meta ? JSON.parse(meta.value) : 'not done yet (Blob store unreachable or not yet attempted)';
   } catch (e) {
-    out.blobList = `error: ${e?.message || e}`;
+    out.database = `error: ${e?.message || e}`;
   }
   res.setHeader('content-type', 'application/json');
   res.setHeader('cache-control', 'no-store');

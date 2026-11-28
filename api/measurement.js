@@ -1,5 +1,4 @@
-import { makeStore } from '../lib/store.js';
-import { blobAdapter } from '../lib/blob-adapter.js';
+import { makePgStore } from '../lib/pg-store.js';
 import { measurementHandler } from '../lib/handlers.js';
 
-export default measurementHandler(makeStore(blobAdapter));
+export default measurementHandler(makePgStore());

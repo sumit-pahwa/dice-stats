@@ -25,7 +25,10 @@ const fileAdapter = {
   async remove(id) { await fs.rm(path.join(dataDir, `${id}.json`), { force: true }); },
 };
 
-const store = makeStore(fileAdapter);
+// Use Postgres when POSTGRES_URL is set (e.g. after `vercel env pull`), otherwise local files.
+const store = process.env.POSTGRES_URL
+  ? (await import('../lib/pg-store.js')).makePgStore()
+  : makeStore(fileAdapter);
 const listH = measurementsHandler(store);
 const oneH = measurementHandler(store);
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
